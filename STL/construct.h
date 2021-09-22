@@ -5,7 +5,6 @@
 
 #include "iterator.h"
 
-namespace std {
 namespace mystl {
 
 template<typename ForwardIterator>
@@ -40,6 +39,6 @@ void destory(ForwardIterator first, ForwardIterator last) {
 }
 
 }   // end of mystl
-}   // end of std
+
 
 #endif

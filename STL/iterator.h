@@ -2,7 +2,6 @@
 #define ITERATOR_H
 
 #include <cstddef>
-namespace std {
 namespace mystl {
 
 // 五种迭代器, 每一种都是结构体
@@ -137,5 +136,4 @@ void advance(InputIterator& it, Distance n) {
 
 
 }   // end of mystl
-}   // end of std
 #endif

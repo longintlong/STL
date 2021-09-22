@@ -22,20 +22,20 @@ public:
     typedef ptrdiff_t differenceType;
 
 public:
-    pointer allocate();
-    pointer allocate(sizeType);
+    static pointer allocate();
+    static pointer allocate(sizeType);
 
-    void deallocate(pointer);
-    void deallocate(pointer, sizeType);
+    static void deallocate(pointer);
+    static void deallocate(pointer, sizeType);
 
-    void construct(pointer);
-    void construct(pointer, const T&);
-    void construct(pointer, T&&);
+    static void construct(pointer);
+    static void construct(pointer, const T&);
+    static void construct(pointer, T&&);
     template<typename... Args>
-    void construct(pointer, Args&&...);
+    static void construct(pointer, Args&&...);
 
-    void destory(pointer);
-    void destory(T*, T*);
+    static void destory(pointer);
+    static void destory(T*, T*);
 
 };
 

@@ -10,7 +10,7 @@ struct input_iterator_tag {};
 struct output_iterator_tag {};
 struct forward_iterator_tag : public input_iterator_tag {};
 struct bidirectional_iterator_tag : public forward_iterator_tag {};
-struct random_access_iteraotr_tag : public bidirectional_iterator_tag {};
+struct random_access_iterator_tag : public bidirectional_iterator_tag {};
 
 
 // 任何迭代器都应该包含这五个内嵌型别
@@ -40,11 +40,11 @@ struct iterator_traits {
 template<typename T>
 struct iterator_traits<T*> {
     // 原生指针是一种random_access_iterator
-    typedef typename random_access_iterator_tag     iterator_category;
-    typedef typename T                              value_type;
-    typedef typename std::ptrdiff_t                 difference_type;
-    typedef typename T*                             pointer;
-    typedef typename T&                             reference;
+    typedef random_access_iterator_tag     iterator_category;
+    typedef T                              value_type;
+    typedef std::ptrdiff_t                 difference_type;
+    typedef T*                             pointer;
+    typedef T&                             reference;
 };
 
 // 针对原生指针的偏特化版本的iterator traits
@@ -94,7 +94,7 @@ __distance(InputIterator first, InputIterator last,
 template<typename RandomAccessIterator>
 typename iterator_traits<RandomAccessIterator>::difference_type
 __distance(RandomAccessIterator first, RandomAccessIterator last,
-           random_access_iteraotr_tag) {
+           random_access_iterator_tag) {
     return last - first;
 }
 
@@ -116,16 +116,16 @@ void __advance(InputIterator& it, Distance n, input_iterator_tag) {
 }
 
 template<typename RandomAccessIterator, typename Distance>
-void __advance(RandomAccessIterator& it, Distance n, random_access_iteraotr_tag) {
+void __advance(RandomAccessIterator& it, Distance n, random_access_iterator_tag) {
     it += n;
 }
 
 template<typename BidirectionalIterator, typename Distance>
 void __advance(BidirectionalIterator& it, Distance n, bidirectional_iterator_tag) {
     if(n > 0) {
-        while(n--) i++;
+        while(n--) it++;
     } else {
-        while(n++) i--;
+        while(n++) it--;
     }
 }
 

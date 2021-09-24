@@ -66,6 +66,10 @@ public:
     void push_back(const value_type&);
     void pop_back();
 
+    // 迭代器操作
+    iterator begin() const { return start; }
+    iterator end() const { return finish; }
+
 
 private:
     // helper function
@@ -203,7 +207,7 @@ void vector<T>::push_back(const value_type& value) {
         data_allocator::construct(finish, value);
         finish++;
     } else {
-
+        reallocate_insert(finish, value);
     }
 }
 
@@ -252,16 +256,17 @@ void vector<T>::reallocate_insert(iterator pos, const value_type& value) {
     auto newStart = data_allocator::allocate(newCapacity);
     auto newFinish = newStart;
     try {
-        newFinish = std::uninitialized_move(start, pos, newStart);
-        data_allocator::construct(newFinish, value);
-        newFinish++;
-        newFinish = std::uninitialized_move(pos, finish, newFinish);
+        newFinish = std::uninitialized_copy(start, pos, newStart); // uninitialized_move is support in c17
+        data_allocator::construct(newFinish++, value);
+        newFinish = std::uninitialized_copy(pos, finish, newFinish);
     } catch(...) {
         data_allocator::deallocate(newStart, newCapacity);
         throw;
     }
-    
-    
+    free();
+    start = newStart;
+    finish = newFinish;
+    endOfStorage = start + newCapacity;
 }
 
 

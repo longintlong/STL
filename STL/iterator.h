@@ -58,6 +58,12 @@ struct iterator_traits<const T*> {
     typedef const T&                       reference;
 };
 
+template<typename _InIter>
+using _RequireInputIter = typename
+    std::enable_if<std::is_convertible<typename
+    iterator_traits<_InIter>::iterator_category,
+                input_iterator_tag>::value>::type;
+
 // 占位参数
 // 萃取Iterator的category, valuetype, difftype
 template<typename Iterator>

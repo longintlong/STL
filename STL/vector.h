@@ -36,6 +36,12 @@ public:
     vector() : start(0), finish(0), endOfStorage(0) {};
     explicit vector(sizeType);
     vector(sizeType, const value_type&);
+    // 这里为什么用模板的 https://www.zhihu.com/question/62552068
+    // 防止和上一个构造函数冲突 -> vec(5, 10)
+    // 解决方法就是判断是否是InputIterator
+    template<typename Iter,
+             typename isInputIter = mystl::_RequireInputIter<Iter>>
+    vector(Iter, Iter);
 
     // 拷贝
     vector(const vector&);
@@ -92,6 +98,13 @@ vector<T>::vector(sizeType n) {
 template<typename T>
 vector<T>::vector(sizeType n, const value_type& value) {
     fill_initialize(n, value);
+}
+
+template<typename T>
+template<typename Iter, typename isInputIter>
+vector<T>::vector(Iter first, Iter last) {
+    assert(first <= last);
+    range_init(first, last);    
 }
 
 // 析构函数
@@ -211,6 +224,12 @@ void vector<T>::push_back(const value_type& value) {
     }
 }
 
+// pop_back
+template<typename T>
+void vector<T>::pop_back() {
+    assert(size() != 0);
+    data_allocator::destory(--finish);
+}
 
 
 
@@ -230,7 +249,7 @@ void vector<T>::init_space(sizeType n, sizeType cap) {
 
 template<typename T>
 void vector<T>::fill_initialize(sizeType n, const value_type& value) {
-    sizeType cap = max(static_cast<sizeType>(8), n);
+    sizeType cap = std::max(static_cast<sizeType>(8), n);
     init_space(n, cap);
     std::uninitialized_fill_n(start, n, value);
 }
@@ -238,7 +257,7 @@ void vector<T>::fill_initialize(sizeType n, const value_type& value) {
 template<typename T>
 void vector<T>::range_init(iterator first, iterator last) {
     sizeType size = static_cast<sizeType>(last - first);
-    sizeType cap = max(size, static_cast<sizeType>(8));
+    sizeType cap = std::max(size, static_cast<sizeType>(8));
     init_space(size, cap);
     std::uninitialized_copy(first, last, start);
 }

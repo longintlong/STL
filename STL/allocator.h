@@ -48,7 +48,7 @@ T* allocator<T>::allocate() {
 template <typename T>
 T* allocator<T>::allocate(size_t n) {
     //TODO n==0
-    return static_cast<T*>(::operator new(n));
+    return static_cast<T*>(::operator new(n * sizeof(T)));
 }
 
 template <typename T>
@@ -58,9 +58,9 @@ void allocator<T>::deallocate(T* ptr) {
 }
 
 template <typename T>
-void allocator<T>::deallocate(T* ptr, size_t n) {
-    if(ptr == nullptr || n == 0) return;
-    ::operator delete(ptr, n);  // void operator delete  ( void* ptr, std::size_t sz ) noexcept;(since C++14)
+void allocator<T>::deallocate(T* ptr, size_t) {
+    if(ptr == nullptr) return;
+    ::operator delete(ptr);  // void operator delete  ( void* ptr, std::size_t sz ) noexcept;(since C++14)
 }
 
 template <typename T>

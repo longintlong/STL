@@ -4,7 +4,6 @@
 #include <string>
 
 
-
 using namespace std;
 int main() {
     mystl::vector<int> vec;
@@ -29,5 +28,14 @@ int main() {
     strVec.insert(strVec.begin() + 1, "my");
     strVec.insert(strVec.begin() + 1, 2, "longintlong");
     std::cout << strVec.capacity() << "size" << strVec.size() << std::endl;
+    for(int i = 0; i < strVec.size(); i++) cout << strVec[i] << endl;
+    strVec.clear();
+    std::cout << "capacity = " << strVec.capacity() << " size = " << strVec.size() << std::endl;
+    cout << "-----------after clear------------" <<endl;
+    
+    strVec.push_back("Hello");
+    std::cout << "capacity = " << strVec.capacity() << " size = " << strVec.size() << std::endl;
+    strVec.emplace_back("world");
+    strVec.insert(strVec.begin() + 1, 2, "longintlong");
     for(int i = 0; i < strVec.size(); i++) cout << strVec[i] << endl;
 }

@@ -79,6 +79,19 @@ public:
     iterator insert(constIterator, const value_type&);
     iterator insert(constIterator, sizeType, const value_type&);
 
+    // emplace / emplace_back
+    template<typename... Args>
+    iterator emplace(constIterator, Args&& ...);
+    template<typename... Args>
+    void emplace_back(Args&& ...);
+
+    // erase / clear
+    iterator erase(constIterator);
+    iterator erase(constIterator, constIterator);
+    // clear 操作要注意他只析构，并不会释放内存，所以clear之后不要用索引访问元素
+    void clear() { erase(begin(), end()); }
+
+
     // 迭代器操作
     iterator begin() const { return start; }
     iterator end() const { return finish; }
@@ -93,6 +106,8 @@ private:
     void init_space(sizeType, sizeType);
 
     void reallocate_insert(iterator, const value_type&);
+    template<typename... Args>
+    void reallocate_emplace(iterator, Args&&...);
     void fill_insert(iterator, sizeType, const value_type&);
     void free();
     void destoryAndDeallocate(iterator, iterator, sizeType);
@@ -188,15 +203,16 @@ typename vector<T>::sizeType vector<T>::capacity() const {
 // 访问元素操作
 template<typename T>
 typename vector<T>::value_type& vector<T>::operator[](sizeType n) {
-    assert(n >= static_cast<sizeType>(0));
-    assert(n < static_cast<sizeType>(finish - start));
+    // [] 不检查元素越界
+    // assert(n >= static_cast<sizeType>(0));
+    // assert(n < capacity());
     return *(start + n);
 }
 
 template<typename T>
 const typename vector<T>::value_type& vector<T>::operator[](sizeType n) const {
-    assert(n >= static_cast<sizeType>(0));
-    assert(n < static_cast<sizeType>(finish - start));
+    // assert(n >= static_cast<sizeType>(0));
+    // assert(n < capacity());
     return *(start + n);    // 返回常量引用
 }
 
@@ -258,25 +274,78 @@ vector<T>::insert(constIterator cpos, const value_type& value) {
         data_allocator::construct(finish, *(finish - 1));
         mystl::copy_backward(pos, finish - 1, finish);
         *pos = value;
-        finish++;
+        ++finish;
     } else {
         reallocate_insert(pos, value);
     }
-    return pos;
+    return start + offset;
 }
 
 template<typename T>
 typename vector<T>::iterator
 vector<T>::insert(constIterator cpos, sizeType n, const value_type& value) {
     assert(cpos >= cbegin() && cpos <= cend());
+    sizeType offset = cpos - cbegin();
     iterator pos = begin() + (cpos - cbegin());
     fill_insert(pos, n, value);
+    return start + offset;
+}
+
+// emplace
+template<typename T>
+template<typename... Args>
+typename vector<T>::iterator vector<T>::emplace(constIterator cpos, Args&&... args) {
+    assert(cpos >= cbegin() && cpos <= cend());
+    sizeType offset = cpos - cbegin();
+    iterator pos = start + offset;
+    if(finish != endOfStorage && pos == finish) {
+        data_allocator::construct(finish++, std::forward<Args>(args)...);
+    } else if(finish != endOfStorage) {
+        data_allocator::construct(finish, *(finish - 1));
+        mystl::move_backward(pos, finish - 1, finish);
+        *pos = value_type(std::forward<Args>(args)...);
+        ++finish;
+    } else 
+        reallocate_emplace(pos, std::forward<Args>(args)...);
+    return start + offset;
+}
+
+// emplace_back()
+template<typename T>
+template<typename... Args>
+void vector<T>::emplace_back(Args&&... args) {
+    if(finish != endOfStorage) {
+        data_allocator::construct(finish++, std::forward<Args>(args)...);
+    } else {
+        reallocate_emplace(finish, std::forward<Args>(args)...);
+    }
+}
+
+// erase
+template<typename T>
+typename vector<T>::iterator vector<T>::erase(constIterator cpos) {
+    assert(cpos >= cbegin() && cpos <= cend());
+    iterator pos = start + (cpos - cbegin());
+    std::move(pos + 1, finish, pos);
+    data_allocator::destory(--finish);
     return pos;
 }
 
+template<typename T>
+typename vector<T>::iterator vector<T>::erase(constIterator cfirst, constIterator clast) {
+    assert(cfirst >= start && clast <= finish && cfirst <= clast);
+    sizeType n = cfirst - cbegin();
+    iterator first = start + n;
+    data_allocator::destory(std::move(first + (clast - cfirst), finish, first),
+                            finish);
+    finish -= (clast - cfirst);
+    return start + n;
+}
 
 
-// helper function
+/*************************************************************************************/
+// helper function                                                                    /
+/*************************************************************************************/
 template<typename T>
 void vector<T>::init_space(sizeType n, sizeType cap) {
     try {
@@ -328,6 +397,26 @@ void vector<T>::reallocate_insert(iterator pos, const value_type& value) {
         newFinish = std::uninitialized_copy(pos, finish, newFinish);
     } catch(...) {
         // TODO 这里不调用destory直接调用deallocate会造成内存泄漏吗? 会
+        destoryAndDeallocate(newStart, newFinish, newCapacity);
+        throw;
+    }
+    free();
+    start = newStart;
+    finish = newFinish;
+    endOfStorage = newStart + newCapacity;
+}
+
+template<typename T>
+template<typename... Args>
+void vector<T>::reallocate_emplace(iterator pos, Args&&... args) {
+    sizeType newCapacity = size() ? capacity() << 1 : 1;
+    auto newStart = data_allocator::allocate(newCapacity);
+    auto newFinish = newStart;
+    try {
+        newFinish = mystl::uninitialized_move(start, pos, newStart); // std::uninitialized_move is support in c17
+        data_allocator::construct(newFinish++, std::forward<Args>(args)...);
+        newFinish = mystl::uninitialized_move(pos, finish, newFinish);
+    } catch(...) {
         destoryAndDeallocate(newStart, newFinish, newCapacity);
         throw;
     }

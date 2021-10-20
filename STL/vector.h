@@ -41,6 +41,7 @@ public:
     // 解决方法就是判断是否是InputIterator
     // 传入普通函数与模板函数的参数类型与之相匹配时，会优先寻找参数完全匹配的普通函数并调用它
     // 当没有找到参数完全匹配的普通函数时会寻找一个函数模板，将其实例化产生一个匹配的模板函数并调用它
+    // TODO 还存在bug不能使用
     template<typename Iter,
              typename = mystl::_RequireInputIter<Iter>>
     vector(Iter first, Iter last) {

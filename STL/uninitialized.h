@@ -23,7 +23,8 @@ _M_uninitialized_move(InputIter first, InputIter last,
     NoThrowForwardIter cur = result;
     try {
         for(; first != last; first++, cur++) {
-            // TODO 这里对迭代器到底是什么产生了疑问，&*cur 和 *cur代表什么
+            // Q : 这里对迭代器到底是什么产生了疑问，&*cur 和 *cur代表什么
+            // A : 有些容器的迭代器不是单纯的指针
             mystl::construct(&*cur, std::move(*first));
         }
     } catch(...) {

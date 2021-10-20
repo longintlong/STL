@@ -36,25 +36,25 @@ constexpr inline size_t deque_buf_size(size_t __size) {
  */
 template<typename T, typename Ref, typename Ptr>
 struct dequeIterator : public iterator<random_access_iterator_tag, T> {
-    typedef dequeIterator<T, T&, T*>            iterator;
-    typedef dequeIterator<T, const T&, const T*>      constIterator;
-    typedef dequeIterator                       self;
+    typedef dequeIterator<T, T&, T*>                iterator;
+    typedef dequeIterator<T, const T&, const T*>    constIterator;
+    typedef dequeIterator                           self;
 
-    typedef T                                   value_type;
-    typedef Ptr                                 pointer;
-    typedef Ref                                 reference;
-    typedef size_t                              sizeType;
-    typedef ptrdiff_t                           differenceType;
-    typedef T*                                  valuePointer;
-    typedef T**                                 mapPointer;
+    typedef T                                       value_type;
+    typedef Ptr                                     pointer;
+    typedef Ref                                     reference;
+    typedef size_t                                  sizeType;
+    typedef ptrdiff_t                               differenceType;
+    typedef T*                                      valuePointer;
+    typedef T**                                     mapPointer;
 
     static sizeType buffer_size() { return deque_buf_size(sizeof(T)); }
 
     // 迭代器4个的数据成员
-    valuePointer                                cur;
-    valuePointer                                first;
-    valuePointer                                last;
-    mapPointer                                  node;
+    valuePointer                                    cur;
+    valuePointer                                    first;
+    valuePointer                                    last;
+    mapPointer                                      node;
 
     // 构造
     dequeIterator() noexcept
@@ -67,7 +67,7 @@ struct dequeIterator : public iterator<random_access_iterator_tag, T> {
     : cur(di.cur), first(di.first), last(di.last), node(di.node) {}
 
     // 重载 *、->、++、-- []
-    reference operator*() const { *cur; }
+    reference operator*() const { return *cur; }
     reference operator->() const { return cur; }
     // 前置++ 返回引用
     self& operator++() {
@@ -138,6 +138,20 @@ struct dequeIterator : public iterator<random_access_iterator_tag, T> {
         last = *newNode + differenceType(buffer_size());
     }
 
+    // 重载比较操作符
+    bool operator==(const self& rhs) const { return cur == rhs.cur; }
+    bool operator!=(const self& rhs) const { return !(*this == rhs); }
+    bool operator< (const self& rhs) const { 
+        return (node == rhs.node ? cur < rhs.cur : node < rhs.node);
+    }
+    bool operator> (const self& rhs) const { return rhs < *this; }
+    bool operator<=(const self& rhs) const { return !(rhs < *this); }
+    bool operator>=(const self& rhs) const { return !(*this < rhs); }
+
+    differenceType operator-(const self& rhs) const {
+        return static_cast<differenceType>(buffer_size() * (node - rhs.node)
+                                           + (cur - first) - (rhs.cur - rhs.first));
+    }
 };
 
 /**
@@ -175,14 +189,28 @@ private:
 
 public:
     // 普通构造函数
-    deque();
-    explicit deque(sizeType n) {    // explicit阻止了参数 n 向deque的隐式转化
+    deque() { fill_init(0, valueType()); }
+    // explicit阻止了参数 n 向deque的隐式转化
+    explicit deque(sizeType n) { fill_init(0, valueType()); }
+    deque(sizeType n, const valueType& value) { fill_init(n, value); }
 
-    }
+    // 拷贝构造,拷贝赋值
+    deque(const deque& rhs) { copy_init(rhs.start, rhs.finish); }
 
+
+    // 迭代器相关
+    iterator begin()        const { return start; }
+    iterator end()          const { return finish; }
+    constIterator cbegin()  const { return start; }
+    constIterator cend()    const { return finish; }
+
+    // 容量
+    bool        empty()            const { return start == finish; }
+    sizeType    size()             const { return finish - start; } 
 
     // helper function
     void fill_init(sizeType, const valueType&);
+    void copy_init(iterator, iterator);
     mapPointer allocate_map(size_t);
     void allocate_buffer(mapPointer, mapPointer);
     void deallocate_buffer(mapPointer, mapPointer);
@@ -197,7 +225,7 @@ public:
  *                                                                     |
  **********************************************************************/
 template<typename T>
-deque<T>::mapPointer deque<T>::allocate_map(size_t n) {
+typename deque<T>::mapPointer deque<T>::allocate_map(size_t n) {
    mapPointer mp = map_allocator::allocate(n);
    // 将所有的指针(指向每个缓冲区的开始)置null
    for(size_t i = 0; i < n; ++i) {
@@ -210,7 +238,7 @@ template<typename T>
 void deque<T>::deallocate_buffer(mapPointer nstart, mapPointer nfinish) {
     mapPointer cur = nfinish;
     while(cur != nstart) {
-        data_allocator::deallocate(*(--cur), buffer_size(sizeof(T)));
+        data_allocator::deallocate(*(--cur), buffer_size());
         *cur = nullptr;
     }
 }
@@ -220,7 +248,7 @@ void deque<T>::allocate_buffer(mapPointer nstart, mapPointer nfinish) {
     mapPointer cur = nstart;
     try {
         for(; cur != nfinish; ++cur) {
-            *cur = data_allocator::allocate(buffer_size(sizeof(T)));
+            *cur = data_allocator::allocate(buffer_size());
         }
     } catch(...) {
         deallocate_buffer(nstart, cur);
@@ -228,13 +256,14 @@ void deque<T>::allocate_buffer(mapPointer nstart, mapPointer nfinish) {
     }
 }
 
+// 申请map的空间以及每个缓冲区的空间
 template<typename T>
 void deque<T>::map_init(sizeType nElem) {
-    const size_t numNodes = nElem / buffer_size(sizeof(T)) + 1;
+    const size_t numNodes = nElem / buffer_size() + 1;
     mapSize = std::max(static_cast<size_t>(DEQUE_MAP_SIZE), numNodes + 2);
     __map = allocate_map(mapSize);
 
-    // 对于numNodes < mapSize TODO : 下面两句还没明白
+    // 让 nstart 和 nfinish 都指向 map 最中央的区域，从中间向两边扩充
     mapPointer nstart = __map + (mapSize - numNodes) / 2;
     mapPointer nfinish = nstart + numNodes;
 
@@ -247,14 +276,33 @@ void deque<T>::map_init(sizeType nElem) {
         throw;
     }
 
-    
-
-
+    start.set_node(nstart);
+    finish.set_node(nfinish - 1);
+    start.cur = start.first;
+    finish.cur = finish.first + nElem % buffer_size();
 }
 
 template<typename T>
 void deque<T>::fill_init(sizeType n, const valueType& value) {
+    map_init(n);
+    // 这里不用try的原因是std::uninitialized_fill已经保证了异常回滚
+    for(auto cur = start.node; cur != finish.node; ++cur) {
+        std::uninitialized_fill(*cur, *cur + buffer_size(), value);
+    }
+    std::uninitialized_fill(finish.first, finish.cur, value);
+}
 
+template<typename T>
+void deque<T>::copy_init(iterator first, iterator last) {
+    sizeType n = mystl::distance(first, last);
+    map_init(n);
+    for(auto cur = start.node; cur != finish.node; ++cur) {
+        auto next = first;
+        mystl::advance(next, buffer_size());
+        std::uninitialized_copy(first, next, *cur);
+        first = next;
+    }
+    std::uninitialized_copy(first, last, finish.first);
 }
 
 }   //  end of namespace mystl

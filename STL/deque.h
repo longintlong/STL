@@ -68,6 +68,8 @@ struct dequeIterator : public iterator<random_access_iterator_tag, T> {
     dequeIterator(const iterator& di)
     : cur(di.cur), first(di.first), last(di.last), node(di.node) {}
 
+    dequeIterator& operator=(const dequeIterator&) = default; 
+
     // 重载 *、->、++、-- []
     reference operator*() const { return *cur; }
     reference operator->() const { return cur; }
@@ -134,7 +136,7 @@ struct dequeIterator : public iterator<random_access_iterator_tag, T> {
     }
 
     // 转换缓冲区
-    void set_node(mapPointer newNode) {
+    void set_node(mapPointer newNode) noexcept {
         node = newNode;
         first = *newNode;
         last = *newNode + differenceType(buffer_size());
@@ -199,6 +201,17 @@ public:
     // 拷贝构造,拷贝赋值
     deque(const deque& rhs) { copy_init(rhs.start, rhs.finish); }
     deque& operator=(const deque&);
+
+    ~deque() {
+        if(__map) {
+            clear();
+            data_allocator::deallocate(start.first, buffer_size());
+            *__map = nullptr;
+            map_allocator::deallocate(__map, mapSize);
+            mapSize = 0;
+            __map = nullptr;
+        }
+    }
 
 
     // 迭代器相关
@@ -303,21 +316,29 @@ typename deque<T>::iterator deque<T>::erase(iterator first, iterator last) {
     }
 }
 
-// clear
+// clear,deque在无任何元素时会有一个缓冲区，clear后也应保留一个缓冲区(头部)
+// clear只是释放缓冲区空间，但并没有释放map空间
 template<typename T>
 void deque<T>::clear() {
-    // 保留缓冲区的头和尾
+    // 先删除(start, finish)之间的
     // ！！！这里的条件不能用 !=
     for(auto cur = start.node + 1; cur < finish.node; ++cur) {
         data_allocator::destory(*cur, *cur + buffer_size());
+        data_allocator::deallocate(*cur, buffer_size());
+        *cur = nullptr;
     }
     // 考虑只有一个缓冲区的情况
     if(start.node != finish.node) {
-        data_allocator::destory(start.cur, start.last);     // TODO 这里说明deque是从两边扩展
+        data_allocator::destory(start.cur, start.last);     // 这里说明deque是从两边扩展
         data_allocator::destory(finish.first, finish.cur);
+        // 只释放finish缓冲区，保留头部缓冲区
+        data_allocator::deallocate(finish.first, buffer_size());
+        *(finish.node) = nullptr;
     } else {
         data_allocator::destory(start.first, start.cur);
     }
+    // TODO 好像没有修改start.cur ?
+    finish = start;
 }
 
 /***********************************************************************

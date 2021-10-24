@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <deque>
 
 
 using namespace std;
@@ -15,8 +16,12 @@ int main() {
     cout << "deq3 size is " << deq3.size() << endl;
     for(auto it = deq3.begin(); it != deq3.end(); ++it) cout << *it <<endl;
     deq3.push_back("Happy 1024!");
+    deq3.push_back("This is my tiny STL!");
 
     mystl::deque<string> deq4(deq3);
     cout << "deq4 size is " << deq4.size() << endl;
     for(auto it = deq4.begin(); it != deq4.end(); ++it) cout << *it <<endl;
+    cout << "clear !" << endl;
+    deq4.clear();
+    cout << "after clear deq4 size is " << deq4.size() << endl;
 }

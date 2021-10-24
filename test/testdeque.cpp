@@ -9,7 +9,14 @@ int main() {
     mystl::deque<int> deq1(5, 9);
     cout << "deq1 size is " << deq1.size() << endl;
     for(auto it = deq1.begin(); it != deq1.end(); ++it) cout << *it <<endl;
-    mystl::deque<int> deq2(deq1);
-    cout << "deq2 size is " << deq1.size() << endl;
-    for(auto it = deq2.begin(); it != deq2.end(); ++it) cout << *it <<endl;
+    deq1.clear();
+    
+    mystl::deque<string> deq3(5, "Hello, world!");
+    cout << "deq3 size is " << deq3.size() << endl;
+    for(auto it = deq3.begin(); it != deq3.end(); ++it) cout << *it <<endl;
+    deq3.push_back("Happy 1024!");
+
+    mystl::deque<string> deq4(deq3);
+    cout << "deq4 size is " << deq4.size() << endl;
+    for(auto it = deq4.begin(); it != deq4.end(); ++it) cout << *it <<endl;
 }

@@ -1,6 +1,8 @@
 #ifndef DEQUE_H
 #define DEQUE_H
 
+// deque 允许常数时间内对头端或尾端进行元素的插入或移除操作
+
 #include "allocator.h"
 #include "algobase.h"
 #include "uninitialized.h"
@@ -196,34 +198,134 @@ public:
 
     // 拷贝构造,拷贝赋值
     deque(const deque& rhs) { copy_init(rhs.start, rhs.finish); }
+    deque& operator=(const deque&);
 
 
     // 迭代器相关
-    iterator begin()        const { return start; }
-    iterator end()          const { return finish; }
-    constIterator cbegin()  const { return start; }
-    constIterator cend()    const { return finish; }
+    iterator begin()               const { return start; }
+    iterator end()                 const { return finish; }
+    constIterator cbegin()         const { return start; }
+    constIterator cend()           const { return finish; }
 
     // 容量
     bool        empty()            const { return start == finish; }
     sizeType    size()             const { return finish - start; } 
 
+    // push_back / push_front
+    void push_back(const valueType&);
+    void push_front(const valueType&);
+
+    // erase
+    iterator erase(iterator);
+    iterator erase(iterator, iterator);
+    void     clear();
+
+private:
     // helper function
-    void fill_init(sizeType, const valueType&);
-    void copy_init(iterator, iterator);
-    mapPointer allocate_map(size_t);
-    void allocate_buffer(mapPointer, mapPointer);
-    void deallocate_buffer(mapPointer, mapPointer);
-    void map_init(sizeType);
+    void                           fill_init(sizeType, const valueType&);
+    void                           copy_init(iterator, iterator);
+    mapPointer                     allocate_map(size_t);
+    void                           allocate_buffer(mapPointer, mapPointer);
+    void                           deallocate_buffer(mapPointer, mapPointer);
+    void                           map_init(sizeType);
+    void                           reallocate_map(sizeType, bool); 
+    void                           reserve_map_at_back(sizeType nodeToAdd = 1);
+    void                           reserve_map_at_front(sizeType);  
 
 };
 
+// 拷贝赋值
+// template<typename T>
+// deque<T>& deque<T>::operator=(const deque& rhs) {
+//     if(this != &rhs) {
+//         const sizeType len = size();
+//         if(len >= rhs.size()) {
+//             erase(std::copy(rhs.begin(), rhs.end(), start), finish);
+//         } else {
+
+//         }
+//     }
+//     return *this;
+// }
+
+template<typename T>
+void deque<T>::push_back(const valueType& value) {
+    // 最后一个缓冲区至少有两个元素备用空间
+    if(finish.cur != finish.last - 1) {
+        data_allocator::construct(finish.cur, value);
+        ++finish.cur;
+    } else {
+        // 默认增加一个缓冲区
+        reserve_map_at_back();
+        *(finish.node + 1) = data_allocator::allocate(buffer_size());
+        try {
+            data_allocator::construct(finish.cur, value);
+            finish.set_node(finish.node + 1);
+            finish.cur = finish.first;
+        } catch(...) {
+            data_allocator::deallocate(*(finish.node + 1));
+            throw;
+        }
+    }
+}
+
+// 删除[first, last)
+// 为了保证效率尽可能的高，就判断删除的位置是中间偏后还是中间偏前来进行移动
+template<typename T>
+typename deque<T>::iterator deque<T>::erase(iterator first, iterator last) {
+    if(first == last) {
+        return first;
+    } else if(first == start && last == finish) {
+        clear();
+        return finish;
+    } else {
+        const differenceType len = last - first;
+        const differenceType elemsBefore = first - start;
+        if(elemsBefore < (static_cast<differenceType>(size()) - len) / 2) {
+            // 只移动前面的
+             if(first != start) {
+                 // 这里直接copy不会造成内存泄漏，因为会调用T的拷贝赋值，T的拷贝赋值保证了不会内存泄漏
+                 mystl::copy_backward(start, first, last);  // libstd 用了move
+             }
+             iterator newStart = start + len;
+             data_allocator::destory(start, newStart);
+             start = newStart;
+        } else {
+            // 只移动后面的
+            if(last != finish) {
+                std::copy(last, finish, first);
+            }
+            iterator newFinish = finish - len;
+            data_allocator::destory(newFinish, finish);
+            finish = newFinish;
+        }
+        return start + elemsBefore;
+    }
+}
+
+// clear
+template<typename T>
+void deque<T>::clear() {
+    // 保留缓冲区的头和尾
+    // ！！！这里的条件不能用 !=
+    for(auto cur = start.node + 1; cur < finish.node; ++cur) {
+        data_allocator::destory(*cur, *cur + buffer_size());
+    }
+    // 考虑只有一个缓冲区的情况
+    if(start.node != finish.node) {
+        data_allocator::destory(start.cur, start.last);     // TODO 这里说明deque是从两边扩展
+        data_allocator::destory(finish.first, finish.cur);
+    } else {
+        data_allocator::destory(start.first, start.cur);
+    }
+}
 
 /***********************************************************************
  *                                                                     |
  * helper function                                                     |
  *                                                                     |
  **********************************************************************/
+// allocate_map只是分配了map 的空间
 template<typename T>
 typename deque<T>::mapPointer deque<T>::allocate_map(size_t n) {
    mapPointer mp = map_allocator::allocate(n);
@@ -268,6 +370,8 @@ void deque<T>::map_init(sizeType nElem) {
     mapPointer nfinish = nstart + numNodes;
 
     try {
+        // 申请缓冲区只是申请了要用的也就是[nstart, nfinish)
+        // 也就是说finish.node后面的结点指向的缓冲区还没申请空间
         allocate_buffer(nstart, nfinish);
     } catch(...) {
         map_allocator::deallocate(__map, mapSize);
@@ -304,6 +408,48 @@ void deque<T>::copy_init(iterator first, iterator last) {
     }
     std::uninitialized_copy(first, last, finish.first);
 }
+
+template<typename T>
+void deque<T>::reallocate_map(sizeType nodeToAdd, bool frontFlag) {
+    const sizeType oldNumNode = finish.node - start.node + 1;
+    const sizeType newNumNode = oldNumNode + nodeToAdd;
+    mapPointer newNStart;
+    if(mapSize > 2 * newNumNode) {
+        newNStart = __map + ((mapSize - newNumNode) >> 1) +
+                             (frontFlag ? nodeToAdd: 0);
+        if(newNStart < start.node) {
+            // 这里只是拷贝缓冲区的结点，并没有做到深拷贝,实际上只需要拷贝map就可以
+            std::copy(start.node, finish.node + 1, newNStart);
+        } else {
+            mystl::copy_backward(start.node,
+                                 finish.node + 1, newNStart + oldNumNode);
+        }
+    } else {
+        /**
+         * @brief 实际上只需要拷贝map就可以
+         * 
+         */
+        const sizeType newMapSize = mapSize + std::max(mapSize, nodeToAdd) + 2;
+        mapPointer __newMap = map_allocator::allocate(newMapSize);
+        mapPointer newNStart = __newMap + ((newMapSize - newNumNode) >> 1) +
+                               (frontFlag ? nodeToAdd : 0);
+        std::copy(start.node, finish.node, newNStart);
+        map_allocator::deallocate(__map, mapSize);
+        __map = __newMap;
+        mapSize = newMapSize;      
+    }
+    // 还需要重新设置迭代器已经失效了
+    start.set_node(newNStart);
+    finish.set_node(newNStart + oldNumNode - 1);
+}
+
+template<typename T>
+void deque<T>::reserve_map_at_back(sizeType nodeToAdd) {
+    // 类的成员函数的参数表在声明时默认参数位于参数表右部但在它定义的时候则不能加默认参数
+    if(nodeToAdd > (mapSize - (finish.node - __map + 1)))
+        reallocate_map(nodeToAdd, false);
+}
+
 
 }   //  end of namespace mystl
 

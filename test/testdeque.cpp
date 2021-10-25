@@ -21,6 +21,11 @@ int main() {
     mystl::deque<string> deq4(deq3);
     cout << "deq4 size is " << deq4.size() << endl;
     for(auto it = deq4.begin(); it != deq4.end(); ++it) cout << *it <<endl;
+    
+    cout<< "erase !" <<endl;
+    deq4.erase(deq4.begin() + 1 , deq4.begin() + 3);
+    for(auto it = deq4.begin(); it != deq4.end(); ++it) cout << *it <<endl;
+    
     cout << "clear !" << endl;
     deq4.clear();
     cout << "after clear deq4 size is " << deq4.size() << endl;

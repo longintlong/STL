@@ -301,7 +301,7 @@ typename deque<T>::iterator deque<T>::erase(iterator first, iterator last) {
                  mystl::copy_backward(start, first, last);  // libstd 用了move
              }
              iterator newStart = start + len;
-             data_allocator::destory(start, newStart);
+             data_allocator::destory(start.cur, newStart.cur);
              start = newStart;
         } else {
             // 只移动后面的
@@ -309,7 +309,7 @@ typename deque<T>::iterator deque<T>::erase(iterator first, iterator last) {
                 std::copy(last, finish, first);
             }
             iterator newFinish = finish - len;
-            data_allocator::destory(newFinish, finish);
+            data_allocator::destory(newFinish.cur, finish.cur);
             finish = newFinish;
         }
         return start + elemsBefore;

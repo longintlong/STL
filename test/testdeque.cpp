@@ -6,25 +6,40 @@
 
 
 using namespace std;
+
+
+
+template<typename T>
+void print_deque(const mystl::deque<T>& deq) {
+    cout << "deq size is " << deq.size() << endl;
+    if(deq.size()) {
+       for(auto it = deq.begin(); it != deq.end(); ++it) 
+           cout << *it <<" ";
+       cout << endl;
+    }
+}
+
 int main() {
     mystl::deque<int> deq1(5, 9);
-    cout << "deq1 size is " << deq1.size() << endl;
-    for(auto it = deq1.begin(); it != deq1.end(); ++it) cout << *it <<endl;
-    deq1.clear();
+    print_deque(deq1);
     
-    mystl::deque<string> deq3(5, "Hello, world!");
-    cout << "deq3 size is " << deq3.size() << endl;
-    for(auto it = deq3.begin(); it != deq3.end(); ++it) cout << *it <<endl;
-    deq3.push_back("Happy 1024!");
-    deq3.push_back("This is my tiny STL!");
+    mystl::deque<string> deq2(5, "Hello, world!");
+    deq2.push_back("Happy 1024!");
+    deq2.push_back("This is my tiny STL!");
+    print_deque(deq2);
 
-    mystl::deque<string> deq4(deq3);
-    cout << "deq4 size is " << deq4.size() << endl;
-    for(auto it = deq4.begin(); it != deq4.end(); ++it) cout << *it <<endl;
+    mystl::deque<string> deq4(deq2);
+    print_deque(deq4);
+    deq4.push_front("Push Front");
+    print_deque(deq4);
+    deq4.pop_back();
+    deq4.pop_front();
+    print_deque(deq4);
     
     cout<< "erase !" <<endl;
     deq4.erase(deq4.begin() + 1 , deq4.begin() + 3);
-    for(auto it = deq4.begin(); it != deq4.end(); ++it) cout << *it <<endl;
+    deq4.push_front("Cpp yyds!");
+    print_deque(deq4);
     
     cout << "clear !" << endl;
     deq4.clear();

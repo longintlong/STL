@@ -9,7 +9,7 @@
 
 #include <memory>
 #include <assert.h>
-
+#include <iostream>
 #ifndef DEQUE_MAP_SIZE
 #define DEQUE_MAP_SIZE 8
 #endif
@@ -75,16 +75,17 @@ struct dequeIterator : public iterator<random_access_iterator_tag, T> {
     reference operator->() const { return cur; }
     // 前置++ 返回引用
     self& operator++() {
+        // 判断cur 是否是last，要先++
+        ++cur;
         if(cur == last) {
-            set_node(node - 1);
+            set_node(node + 1);
             cur = first;
         }
-        ++cur;
         return *this;
     }
     self& operator--() {
         if(cur == first) {
-            set_node(node + 1);
+            set_node(node - 1);
             cur = last;
         }
         --cur;
@@ -103,7 +104,7 @@ struct dequeIterator : public iterator<random_access_iterator_tag, T> {
         return temp;
     }
 
-    self& operator[](differenceType n) { return *(*this + n); }
+    reference operator[](differenceType n) { return *(*this + n); }
 
 
     // 重载 += + -= -
@@ -202,6 +203,7 @@ public:
     deque(const deque& rhs) { copy_init(rhs.start, rhs.finish); }
     deque& operator=(const deque&);
 
+    // 析构
     ~deque() {
         if(__map) {
             clear();
@@ -222,11 +224,20 @@ public:
 
     // 容量
     bool        empty()            const { return start == finish; }
-    sizeType    size()             const { return finish - start; } 
+    sizeType    size()             const { return finish - start; }
+
+    // 元素访问 不判断越界
+    reference operator[](sizeType n) { return start[static_cast<differenceType>(n)]; }
+    // TODO Q:这个函数声明为const只是为了重载嘛？
+    constReference operator[](sizeType n) const{ return start[static_cast<differenceType>(n)]; }
 
     // push_back / push_front
     void push_back(const valueType&);
     void push_front(const valueType&);
+
+    // pop_back / pop_front 
+    void pop_back();
+    void pop_front();
 
     // erase
     iterator erase(iterator);
@@ -243,7 +254,7 @@ private:
     void                           map_init(sizeType);
     void                           reallocate_map(sizeType, bool); 
     void                           reserve_map_at_back(sizeType nodeToAdd = 1);
-    void                           reserve_map_at_front(sizeType);  
+    void                           reserve_map_at_front(sizeType nodeToAdd = 1);  
 
 };
 
@@ -276,10 +287,60 @@ void deque<T>::push_back(const valueType& value) {
             finish.set_node(finish.node + 1);
             finish.cur = finish.first;
         } catch(...) {
-            data_allocator::deallocate(*(finish.node + 1));
+            data_allocator::deallocate(*(finish.node + 1), buffer_size());
             throw;
         }
     }
+}
+
+template<typename T>
+void deque<T>::push_front(const valueType& value) {
+    // 第一个缓冲区至少一个元素的备用空间
+    if(start.first != start.cur) {
+        // ！！！注意start的cur指向的是缓冲区第一个元素，和finish的cur不一样
+        data_allocator::construct(start.cur - 1, value);
+        --start.cur;
+    } else {
+        reserve_map_at_front();
+        *(start.node - 1) = data_allocator::allocate(buffer_size());
+        try {
+            start.set_node(start.node - 1);
+            start.cur = start.last - 1;
+            data_allocator::construct(start.cur, value);
+        } catch(...) {
+            ++start;
+            data_allocator::deallocate(*(start.node - 1), buffer_size());
+            throw;
+        }
+    }
+}
+
+template<typename T>
+void deque<T>::pop_back() {
+    // 缓冲区如果有一个元素则不会释放，因为cur=first说明缓冲区没有元素
+    if(finish.cur != finish.first) {
+        data_allocator::destory(--finish.cur);
+    } else {
+        data_allocator::deallocate(*(finish.node), buffer_size());
+        // TODO Q: 这句话有必要吗？ 是否可以把deallocate和nullptr封装为一个non member？
+        *(finish.node) = nullptr;
+        finish.set_node(finish.node - 1);
+        finish.cur = finish.last - 1;
+        data_allocator::destory(finish.cur);
+    }
+}
+
+template<typename T>
+void deque<T>::pop_front() {
+   if(start.cur != start.last - 1) {
+       data_allocator::destory(start.cur++);
+   } else {
+        data_allocator::destory(start.cur);
+        data_allocator::deallocate(*(start.node), buffer_size());
+        *(start.node) = nullptr;
+        start.set_node(start.node + 1);
+        start.cur = start.first;
+   }
 }
 
 // 删除[first, last)
@@ -471,6 +532,12 @@ void deque<T>::reserve_map_at_back(sizeType nodeToAdd) {
         reallocate_map(nodeToAdd, false);
 }
 
+template<typename T>
+void deque<T>::reserve_map_at_front(sizeType nodeToAdd) {
+    if(nodeToAdd > start.node - __map){
+        reallocate_map(nodeToAdd, true);
+    }
+}
 
 }   //  end of namespace mystl
 

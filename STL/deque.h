@@ -9,7 +9,7 @@
 
 #include <memory>
 #include <assert.h>
-#include <iostream>
+
 #ifndef DEQUE_MAP_SIZE
 #define DEQUE_MAP_SIZE 8
 #endif
@@ -539,6 +539,15 @@ void deque<T>::reserve_map_at_front(sizeType nodeToAdd) {
     }
 }
 
+template<typename T>
+bool operator==(const deque<T>& x, const deque<T>& y) {
+    return x.size() == y.size() && mystl::equal(x.begin(), x.end(), y.begin());
+}
+
+template<typename T>
+bool operator!= (const deque<T>& x, const deque<T>& y) {
+    return !(x == y);
+}
 }   //  end of namespace mystl
 
 

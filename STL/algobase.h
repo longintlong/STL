@@ -20,6 +20,15 @@ BI2 copy_backward(BI1 first, BI1 last, BI2 result) {
     return std::copy_backward(first, last, result);
 }
 
+// 使用迭代器比较容器区间是否相等，已经做好了size的判断
+template<typename II1, typename II2>
+bool equal(II1 first1, II1 last, II2 first2) {
+    for(; first1 != last; ++first1, ++first2) {
+        if(*first1 != *first2)
+            return false;
+    }
+    return true;
+}
 
 
 }   // end of namespace mystl

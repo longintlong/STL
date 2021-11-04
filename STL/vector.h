@@ -92,6 +92,8 @@ public:
     // clear 操作要注意他只析构，并不会释放内存，所以clear之后不要用索引访问元素
     void clear() { erase(begin(), end()); }
 
+    void swap(const vector&) noexcept;
+
 
     // 迭代器操作
     iterator begin() const { return start; }
@@ -343,6 +345,16 @@ typename vector<T>::iterator vector<T>::erase(constIterator cfirst, constIterato
     return start + n;
 }
 
+template<typename T>
+void vector<T>::swap(const vector& rhs) noexcept {
+    using std::swap
+    if(this != &rhs) {
+        swap(start, rhs.start);
+        swap(finish, rhs.finish);
+        swap(endOfStorage, rhs.endOfStorage);
+    }
+}
+
 
 /*************************************************************************************/
 // helper function                                                                    /
@@ -463,6 +475,12 @@ vector<T>::fill_insert(iterator pos, sizeType n, const value_type& value) {
             endOfStorage = start + newCapacity;
         }
     }
+}
+
+// non-member swap
+template<typename T>
+void swap(const vector<T>& x, const vector<T>& y) {
+    x.swap(y);
 }
 
 

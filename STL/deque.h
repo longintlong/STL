@@ -244,6 +244,14 @@ public:
     iterator erase(iterator, iterator);
     void     clear();
 
+    void swap(const deque& rhs) noexcept {
+        using std::swap;
+        swap(start, rhs.start);
+        swap(finish, rhs.finish);
+        swap(__map, rhs.__map);
+        swap(mapSize, rhs.mapSize);
+    }
+
 private:
     // helper function
     void                           fill_init(sizeType, const valueType&);
@@ -547,6 +555,12 @@ bool operator==(const deque<T>& x, const deque<T>& y) {
 template<typename T>
 bool operator!= (const deque<T>& x, const deque<T>& y) {
     return !(x == y);
+}
+
+// non-member swap， 如果不是class template 特化std::swap
+template<typename T>
+void swap(const deque<T>& x, const deque<T>& y) {
+    x.swap(y);
 }
 }   //  end of namespace mystl
 
